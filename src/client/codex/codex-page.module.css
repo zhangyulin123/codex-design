@@ -1,0 +1,634 @@
+/**
+ * Codex page + Codex token viewer chrome.
+ *
+ * The Codex visual language, expressed exclusively through design tokens (the
+ * skin contract, docs/external-plugin-guide.md §12):
+ *
+ *  - depth comes from LAYERED SURFACES plus 1px hairlines — never a shadow;
+ *  - text is grayscale (`label-primary` → `label-caption`);
+ *  - the signature green accent appears sparingly: one dot, one count pill, the
+ *    primary action, focus rings;
+ *  - machine text (token names/values, the palette's own prefixes) is monospace
+ *    via the code-font token.
+ *
+ * No literal color value appears below: the only place this plugin writes a
+ * color is the `CODEX_TOKENS` palette, and the swatches read their values from
+ * it (or from the parsed document) at runtime, as inline styles.
+ */
+
+/* ── Page shell ──────────────────────────────────────────────────────────── */
+
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.headTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.headSwatch {
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+}
+
+/* ── Section card (layered surface + hairline, no shadow) ────────────────── */
+
+.section {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-hairline);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.sectionDesc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.subHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Metadata pill: the count is tabular so columns of numbers line up. */
+.count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--dsw-alias-accent-soft);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--dsw-alias-accent-soft);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  color: var(--dsw-alias-accent);
+}
+
+.stateDot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.stateOn {
+  background: var(--dsw-alias-accent);
+}
+
+.stateOff {
+  background: var(--dsw-alias-label-dimmed);
+}
+
+/* ── Theme section ──────────────────────────────────────────────────────── */
+
+.themeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-hairline);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base);
+}
+
+.previewSwatch {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 12px);
+  gap: 4px;
+}
+
+.previewChip {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--dsw-alias-hairline);
+  border-radius: 3px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ── Buttons (shared by the page and its confirmation rows) ─────────────── */
+
+.btnPrimary,
+.btnGhost,
+.btnMini,
+.btnDanger,
+.btnDismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btnPrimary {
+  padding: 6px 12px;
+  border: 1px solid var(--dsw-alias-button-primary-fill);
+  border-radius: 8px;
+  background: var(--dsw-alias-button-primary-fill);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dsw-alias-accent-ink);
+}
+
+.btnPrimary:hover {
+  border-color: var(--dsw-alias-button-primary-hover);
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+.btnGhost {
+  padding: 6px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.btnGhost:hover {
+  border-color: var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.btnMini {
+  padding: 3px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.btnMini:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.btnMiniDanger {
+  color: var(--dsw-alias-danger);
+}
+
+.btnMiniDanger:hover {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-danger);
+}
+
+.btnDanger {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--dsw-alias-danger);
+  border-radius: 6px;
+  background: var(--dsw-alias-danger);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary-inverted);
+}
+
+.btnDismiss {
+  flex: none;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.btnDismiss:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.btnPrimary:focus-visible,
+.btnGhost:focus-visible,
+.btnMini:focus-visible,
+.btnDanger:focus-visible,
+.btnDismiss:focus-visible {
+  outline: 1px solid var(--dsw-alias-accent);
+  outline-offset: 1px;
+}
+
+.btnPrimary:disabled,
+.btnGhost:disabled,
+.btnMini:disabled,
+.btnDanger:disabled,
+.btnDismiss:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* ── Design-token list (bounded scroll area, grouped by name prefix) ────── */
+
+.tokenScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  padding-right: 4px;
+  overflow: auto;
+}
+
+.tokenScroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tokenScroll::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--dsw-alias-scrollbar-bg-l1);
+}
+
+.tokenScroll::-webkit-scrollbar-thumb:hover {
+  background: var(--dsw-alias-scrollbar-hover-l1);
+}
+
+.tokenGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The group heading sticks to the scroll viewport's top edge, so a long family
+   keeps its prefix visible while it is being read. */
+.tokenGroupHead {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.tokenGroupLabel {
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 10px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.tokenRow {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+
+.tokenRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tokenSwatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 3px;
+}
+
+/* A value that is not a color: the same box, outlined instead of filled. */
+.tokenSwatchNone {
+  width: 12px;
+  height: 12px;
+  border: 1px dashed var(--dsw-alias-border-l1);
+  border-radius: 3px;
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.tokenName {
+  overflow: hidden;
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenValue {
+  max-width: 130px;
+  overflow: hidden;
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 10px;
+  color: var(--dsw-alias-label-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Sessions ───────────────────────────────────────────────────────────── */
+
+.sessionList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sessionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-hairline);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.sessionRow:hover {
+  border-color: var(--dsw-alias-border-l2);
+}
+
+.sessionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sessionTitle {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionId {
+  overflow: hidden;
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 10px;
+  color: var(--dsw-alias-label-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currentDot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dsw-alias-accent);
+}
+
+.sessionActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-danger);
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+}
+
+.confirmText {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.emptyNote {
+  padding: 6px 8px;
+  border: 1px dashed var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-danger);
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  font-size: 11px;
+  color: var(--dsw-alias-danger);
+}
+
+/* ── Token viewer (a whole editor pane, so it owns its scrolling) ───────── */
+
+.viewer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 0;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+
+.viewerHead {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dsw-alias-hairline);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.viewerTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.viewerCount {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--dsw-alias-accent-soft);
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.viewerPath {
+  overflow: hidden;
+  margin-left: auto;
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 10px;
+  color: var(--dsw-alias-label-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewerBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+}
+
+.viewerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.viewerCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-hairline);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.viewerSwatch {
+  height: 34px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+}
+
+.viewerName {
+  overflow: hidden;
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewerValue {
+  overflow: hidden;
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 10px;
+  color: var(--dsw-alias-label-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewerList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viewerListRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+
+.viewerListRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.viewerEmpty {
+  padding: 10px 12px;
+  border: 1px dashed var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The raw-text fallback: the document itself, in a monospace block (no
+   editor library — the viewer must not pull a lazy chunk). */
+.viewerRaw {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-hairline);
+  border-radius: 10px;
+  background: var(--dsw-alias-markdown-code-block);
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

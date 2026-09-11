@@ -1,0 +1,96 @@
+/**
+ * Codex theme settings row styles.
+ *
+ * Skin contract (docs/external-plugin-guide.md §12): every visual value is a
+ * `--dsw-*` / `--ds-*` design token — no hardcoded colors. Under the Codex
+ * theme this row therefore renders in the Codex palette itself, and under any
+ * other skin it follows that skin.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.swatch {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--dsw-font-s-strong-14);
+  color: var(--dsw-alias-label-primary);
+}
+
+.desc {
+  font: var(--dsw-font-xxs-12);
+  color: var(--dsw-alias-label-secondary);
+  max-width: 560px;
+}
+
+.tag {
+  font-family: var(--ds-font-family-code, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  background: var(--dsw-alias-accent);
+  color: var(--dsw-alias-accent-ink);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btnPrimary,
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  font: var(--dsw-font-xs-13);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnPrimary {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-accent-ink);
+}
+
+.btnPrimary:hover {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  border-color: var(--dsw-alias-border-l3);
+}
+
+.btnGhost:hover {
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+}
